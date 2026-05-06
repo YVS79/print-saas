@@ -1,22 +1,36 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, type RefObject } from "react";
 import { useCanvasManager } from "../hooks/useCanvasManager";
 import { useEditorContext } from "../store/EditorContext";
+import type { CanvasManager } from "../canvas/CanvasManager";
 import type { FormatKey } from "../canvas/canvasConfig";
 
 interface EditorCanvasProps {
   format: FormatKey;
   bleedMM?: number;
+  /** Внешний canvasRef — если CanvasManager создан в родителе */
+  externalCanvasRef?: RefObject<HTMLCanvasElement | null>;
+  /** Внешний getManager — если CanvasManager создан в родителе */
+  externalGetManager?: () => CanvasManager | null;
 }
 
 /**
  * EditorCanvas — компонент-обёртка для Fabric.js канвы.
- * Создаёт CanvasManager, управляет жизненным циклом.
+ * Если передан externalCanvasRef и externalGetManager — использует их,
+ * иначе создаёт свои (автономный режим).
  */
-export function EditorCanvas({ format, bleedMM = 3 }: EditorCanvasProps) {
-  const { canvasRef, setZoom } = useCanvasManager(format, bleedMM);
+export function EditorCanvas({
+  format,
+  bleedMM = 3,
+  externalCanvasRef,
+  externalGetManager,
+}: EditorCanvasProps) {
+  const { canvasRef: internalCanvasRef, setZoom } = useCanvasManager(format, bleedMM);
   const { state } = useEditorContext();
+
+  // Используем внешний или внутренний ref
+  const canvasRef = externalCanvasRef ?? internalCanvasRef;
 
   // Fit-to-screen при загрузке
   useEffect(() => {
@@ -46,7 +60,7 @@ export function EditorCanvas({ format, bleedMM = 3 }: EditorCanvasProps) {
       )}
 
       <canvas
-        ref={canvasRef}
+        ref={canvasRef as RefObject<HTMLCanvasElement | null>}
         className="shadow-xl"
         style={{
           maxWidth: "100%",
