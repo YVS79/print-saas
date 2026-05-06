@@ -1,6 +1,7 @@
 import { Canvas, Rect } from "fabric";
 import { EventBus } from "./EventBus";
-import { mmToPx, getCanvasSize, type FormatKey } from "./canvasConfig";
+import { mmToPx, pxToMm, getCanvasSize, type FormatKey } from "./canvasConfig";
+import type { Slot } from "./types";
 
 export interface CanvasCoreOptions {
   format: FormatKey;
@@ -14,6 +15,7 @@ export interface CanvasCoreOptions {
  * - установка размера под формат A4/A3 + bleed
  * - zoom (масштабирование)
  * - отрисовка шаблонных линий (bleed, safe zone)
+ * - setTemplate — загрузка шаблона со слотами
  * - destroy
  */
 export class CanvasCore {
@@ -79,7 +81,6 @@ export class CanvasCore {
 
   /**
    * Отрисовывает шаблонные элементы: область выпуска (bleed) и безопасную зону.
-   * Вставляем в самый низ холста (index 0).
    */
   drawTemplateGuides(): void {
     if (!this.canvas) return;
@@ -88,7 +89,6 @@ export class CanvasCore {
     const bleedPx = mmToPx(this.bleedMM);
 
     // --- Safe zone (синяя пунктирная рамка внутри bleed) ---
-    // Вставляем первой на index 0 (будет в самом низу)
     const safeRect = new Rect({
       left: bleedPx,
       top: bleedPx,
@@ -119,12 +119,67 @@ export class CanvasCore {
       data: { role: "template", type: "bleed" } as Record<string, unknown>,
     });
 
-    // Используем insertAt(index, ...objects) — Fabric.js 6 API
-    // Сначала добавляем наверх, затем вставляем с нужным индексом
     this.canvas.insertAt(0, safeRect);
     this.canvas.insertAt(1, bleedRect);
 
     this.canvas.renderAll();
+  }
+
+  /**
+   * Загружает шаблон: очищает холст от user/slot объектов,
+   * перерисовывает направляющие и слоты.
+   * Вызывается при выборе нового шаблона.
+   */
+  setTemplate(slots: Slot[]): void {
+    if (!this.canvas) return;
+
+    // Удаляем все объекты, кроме template (bleed/safe zone)
+    const toRemove = this.canvas.getObjects().filter((obj) => {
+      const data = (obj as any).data;
+      return data?.role !== "template";
+    });
+    toRemove.forEach((obj) => this.canvas!.remove(obj));
+
+    // Отрисовываем слоты
+    this.drawSlots(slots);
+
+    this.canvas.renderAll();
+    this.eventBus.emit("designLoaded", { isEmpty: slots.length === 0 });
+  }
+
+  /**
+   * Отрисовывает слоты шаблона.
+   */
+  private drawSlots(slots: Slot[]): void {
+    if (!this.canvas) return;
+
+    slots.forEach((slot) => {
+      const xPx = mmToPx(slot.xMM);
+      const yPx = mmToPx(slot.yMM);
+      const wPx = mmToPx(slot.widthMM);
+      const hPx = mmToPx(slot.heightMM);
+
+      const slotRect = new Rect({
+        left: xPx,
+        top: yPx,
+        width: wPx,
+        height: hPx,
+        fill: "rgba(200, 200, 200, 0.15)",
+        stroke: "#888888",
+        strokeWidth: 1,
+        strokeDashArray: [4, 4] as any,
+        selectable: false,
+        evented: false,
+        excludeFromExport: true,
+        data: {
+          role: "slot",
+          slotId: slot.id,
+          slotLabel: slot.label,
+        } as Record<string, unknown>,
+      });
+
+      this.canvas!.add(slotRect);
+    });
   }
 
   /**

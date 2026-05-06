@@ -4,18 +4,22 @@ import { CanvasCore } from "./CanvasCore";
 import { ObjectService } from "./object-service";
 import { SelectionService } from "./selection-service";
 import { HistoryService } from "./history-service";
+import { ExportService } from "./export-service";
+import { SlotService } from "./slot-service";
 import type { FormatKey } from "./canvasConfig";
 import type { Command } from "./commands/Command";
+import type { Slot } from "./types";
 
 type ServiceMap = {
   objectService: ObjectService;
   selectionService: SelectionService;
   historyService: HistoryService;
+  exportService: ExportService;
+  slotService: SlotService;
 };
 
 /**
  * CanvasManager — фасад-компоновщик, объединяющий все сервисы редактора.
- * Внешний код взаимодействует только с ним.
  */
 export class CanvasManager {
   public readonly eventBus: EventBus;
@@ -23,6 +27,8 @@ export class CanvasManager {
   public readonly objectService: ObjectService;
   public readonly selectionService: SelectionService;
   public readonly historyService: HistoryService;
+  public readonly exportService: ExportService;
+  public readonly slotService: SlotService;
 
   private services: Array<{ destroy(): void }> = [];
 
@@ -33,9 +39,13 @@ export class CanvasManager {
     this.objectService = new ObjectService(this.eventBus);
     this.selectionService = new SelectionService(this.eventBus);
     this.historyService = new HistoryService(this.eventBus);
+    this.exportService = new ExportService();
+    this.slotService = new SlotService(this.eventBus);
 
     this.services = [
       this.selectionService,
+      this.exportService,
+      this.slotService,
     ];
   }
 
@@ -56,7 +66,16 @@ export class CanvasManager {
     const canvas = this.core.canvas;
     this.objectService.setCanvas(canvas);
     this.selectionService.setCanvas(canvas);
+    this.exportService.setCanvas(canvas);
+    this.slotService.setCanvas(canvas);
     this.historyService.setManager(this);
+  }
+
+  /**
+   * Загружает шаблон на холст (очищает user/slot, рисует направляющие и слоты).
+   */
+  setTemplate(slots: Slot[]): void {
+    this.core.setTemplate(slots);
   }
 
   /**
