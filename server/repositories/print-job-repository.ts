@@ -17,6 +17,22 @@ export interface PrintJobRecord {
   updated_at: string;
 }
 
+export async function getShopPrintJobs(shopId: string): Promise<PrintJobRecord[]> {
+  const queryable = getCurrentQueryable();
+  const result = await queryable.query<PrintJobRecord>(
+    `
+      SELECT id, shop_id, order_id, design_id, design_version, printer_format, dpi, bleed_mm,
+             status, pdf_asset_id, error_message, created_at, updated_at
+      FROM print_jobs
+      WHERE shop_id = $1
+      ORDER BY created_at DESC
+    `,
+    [shopId],
+  );
+
+  return result.rows;
+}
+
 export async function createPrintJob(params: {
   shopId: string;
   orderId: string;

@@ -18,17 +18,17 @@ export function parseOrThrow<T>(schema: ZodSchema<T>, input: unknown): T {
 }
 
 export function ok<T>(data: T): Response {
-  return Response.json<ApiSuccessResponse<T>>({ data });
+  return Response.json({ data } satisfies ApiSuccessResponse<T>);
 }
 
 export function created<T>(data: T): Response {
-  return Response.json<ApiSuccessResponse<T>>({ data }, { status: 201 });
+  return Response.json({ data } satisfies ApiSuccessResponse<T>, { status: 201 });
 }
 
 export function errorResponse(error: unknown): Response {
   if (error instanceof AppError) {
-    return Response.json<ApiErrorResponse>({ error: error.message }, { status: error.statusCode });
+    return Response.json({ error: error.message } satisfies ApiErrorResponse, { status: error.statusCode });
   }
 
-  return Response.json<ApiErrorResponse>({ error: "Internal server error" }, { status: 500 });
+  return Response.json({ error: "Internal server error" } satisfies ApiErrorResponse, { status: 500 });
 }

@@ -4,10 +4,15 @@ import { withTransaction } from "@/server/db/transaction";
 import {
   PrintJobRecord,
   createPrintJob,
+  getShopPrintJobs,
   updatePrintJobStatus,
 } from "@/server/repositories/print-job-repository";
 import { requireOrderForShop } from "@/server/services/order-service";
 import { requireDesignVersion } from "@/server/services/design-service";
+
+export async function listPrintJobsForShop(shopId: string): Promise<PrintJobRecord[]> {
+  return getShopPrintJobs(shopId);
+}
 
 export async function createPrintJobForOrder(input: {
   shopId: string;

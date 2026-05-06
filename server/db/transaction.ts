@@ -1,16 +1,17 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { PoolClient } from "pg";
-import { db } from "@/server/db/pool";
+import { getDb } from "@/server/db/pool";
 
 const transactionStorage = new AsyncLocalStorage<PoolClient>();
 
 export type Queryable = Pick<PoolClient, "query">;
 
 export function getCurrentQueryable(): Queryable {
-  return transactionStorage.getStore() ?? db;
+  return transactionStorage.getStore() ?? getDb();
 }
 
 export async function withTransaction<T>(callback: () => Promise<T>): Promise<T> {
+  const db = getDb();
   const client = await db.connect();
 
   try {
