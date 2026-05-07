@@ -56,8 +56,6 @@ export class CanvasCore {
       fireRightClick: false,
     });
 
-    console.log("CanvasCore.init: canvas created", this.canvas);
-
     this.eventBus.emit("canvasSizeChanged", {
       width: size.widthPx,
       height: size.heightPx,

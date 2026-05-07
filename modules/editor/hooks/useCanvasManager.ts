@@ -18,7 +18,6 @@ export function useCanvasManager(format: FormatKey, bleedMM: number) {
   const initCalledRef = useRef(false);
 
   const initCanvas = useCallback(async () => {
-    console.log("useCanvasManager called, canvasRef:", canvasRef.current);
     if (!canvasRef.current) return;
 
     // Уничтожаем предыдущий менеджер, если есть
