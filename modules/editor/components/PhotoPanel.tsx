@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useRef, useCallback } from "react";
-import { useUpload } from "../hooks/useUpload";
+import React, { useRef, useCallback, useState } from "react";
 import { useEditorContext } from "../store/EditorContext";
 import type { CanvasManager } from "../canvas/CanvasManager";
 import { AddImageCommand } from "../canvas/commands/add-image-command";
@@ -12,53 +11,62 @@ interface PhotoPanelProps {
 
 /**
  * PhotoPanel — панель загрузки фотографий.
- * Позволяет выбрать файл, загрузить в S3 и добавить на холст.
+ * Позволяет выбрать файл и добавить на холст через FileReader.
  */
 export function PhotoPanel({ getManager }: PhotoPanelProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { uploadFile, isUploading, progress } = useUpload();
   const { dispatch } = useEditorContext();
+  const [isReading, setIsReading] = useState(false);
 
   const handleFileSelect = useCallback(
-    async (e: React.ChangeEvent<HTMLInputElement>) => {
+    (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (!file) return;
 
       const manager = getManager();
       if (!manager) return;
 
-      try {
-        dispatch({ type: "SET_LOADING", payload: true });
+      setIsReading(true);
+      dispatch({ type: "SET_LOADING", payload: true });
 
-        // Загружаем файл в S3
-        const result = await uploadFile(file);
-        if (!result) throw new Error("Не удалось загрузить файл");
+      const reader = new FileReader();
 
-        // Добавляем изображение на холст через команду
-        const cmd = new AddImageCommand({
-          url: result.previewUrl,
-          xMM: 10,
-          yMM: 10,
-          widthMM: 100,
-          heightMM: 100,
-          assetId: result.assetId,
-        });
+      reader.onload = async (event) => {
+        try {
+          const dataUrl = event.target?.result as string;
 
-        await manager.executeCommand(cmd);
-      } catch (err) {
-        dispatch({
-          type: "SET_ERROR",
-          payload: err instanceof Error ? err.message : "Ошибка загрузки",
-        });
-      } finally {
+          // Добавляем фото на холст через команду
+          const cmd = new AddImageCommand({
+            url: dataUrl,
+          });
+
+          await manager.executeCommand(cmd);
+        } catch (err) {
+          dispatch({
+            type: "SET_ERROR",
+            payload: err instanceof Error ? err.message : "Ошибка загрузки",
+          });
+        } finally {
+          setIsReading(false);
+          dispatch({ type: "SET_LOADING", payload: false });
+          if (fileInputRef.current) {
+            fileInputRef.current.value = "";
+          }
+        }
+      };
+
+      reader.onerror = () => {
+        dispatch({ type: "SET_ERROR", payload: "Ошибка чтения файла" });
+        setIsReading(false);
         dispatch({ type: "SET_LOADING", payload: false });
-        // Сбрасываем input чтобы можно было выбрать тот же файл
         if (fileInputRef.current) {
           fileInputRef.current.value = "";
         }
-      }
+      };
+
+      reader.readAsDataURL(file);
     },
-    [getManager, uploadFile, dispatch],
+    [getManager, dispatch],
   );
 
   return (
@@ -78,19 +86,10 @@ export function PhotoPanel({ getManager }: PhotoPanelProps) {
       <button
         className="w-full text-sm px-3 py-2 rounded bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 transition-colors"
         onClick={() => fileInputRef.current?.click()}
-        disabled={isUploading}
+        disabled={isReading}
       >
-        {isUploading ? `Загрузка... ${progress}%` : "Загрузить фото"}
+        {isReading ? "Загрузка..." : "Загрузить фото"}
       </button>
-
-      {isUploading && (
-        <div className="mt-2 w-full bg-zinc-200 rounded-full h-1.5">
-          <div
-            className="bg-blue-500 h-1.5 rounded-full transition-all"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-      )}
     </div>
   );
 }

@@ -15,8 +15,10 @@ export function useCanvasManager(format: FormatKey, bleedMM: number) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const managerRef = useRef<CanvasManager | null>(null);
   const { dispatch } = useEditorContext();
+  const initCalledRef = useRef(false);
 
-  const initCanvas = useCallback(() => {
+  const initCanvas = useCallback(async () => {
+    console.log("useCanvasManager called, canvasRef:", canvasRef.current);
     if (!canvasRef.current) return;
 
     // Уничтожаем предыдущий менеджер, если есть
@@ -25,7 +27,7 @@ export function useCanvasManager(format: FormatKey, bleedMM: number) {
     }
 
     const manager = new CanvasManager(format, bleedMM);
-    manager.init(canvasRef.current);
+    await manager.init(canvasRef.current);
     managerRef.current = manager;
 
     // Подписка на изменение зума
@@ -51,14 +53,26 @@ export function useCanvasManager(format: FormatKey, bleedMM: number) {
 
   // Инициализация при монтировании
   useEffect(() => {
-    initCanvas();
+    if (!canvasRef.current) return; // ждём, пока canvas появится в DOM
+    if (initCalledRef.current) return;
+    initCalledRef.current = true;
+
+    initCanvas().catch((err) => {
+      console.error("CanvasManager init failed:", err);
+      dispatch({
+        type: "SET_ERROR",
+        payload: err instanceof Error ? err.message : "Failed to init canvas",
+      });
+    });
+
     return () => {
       if (managerRef.current) {
         managerRef.current.destroy();
         managerRef.current = null;
       }
+      initCalledRef.current = false;
     };
-  }, [initCanvas]);
+  }, [initCanvas, canvasRef.current, dispatch]);
 
   const setZoom = useCallback((zoom: number) => {
     managerRef.current?.setZoom(zoom);

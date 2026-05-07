@@ -1,15 +1,9 @@
 import type { Command } from "./Command";
-import type { ObjectService } from "../object-service";
 import type { CanvasManager } from "../CanvasManager";
 
 export interface AddImageCommandOptions {
   url: string;
-  xMM: number;
-  yMM: number;
-  widthMM: number;
-  heightMM: number;
-  rotationDeg?: number;
-  assetId?: string;
+  slotId?: string;
 }
 
 /**
@@ -26,16 +20,11 @@ export class AddImageCommand implements Command {
   }
 
   async execute(manager: CanvasManager): Promise<void> {
-    const objectService = manager.getService<ObjectService>("objectService");
+    const objectService = manager.getService("objectService");
     if (!objectService) return;
 
     const id = await objectService.addImage(this.objectData.url, {
-      xMM: this.objectData.xMM,
-      yMM: this.objectData.yMM,
-      widthMM: this.objectData.widthMM,
-      heightMM: this.objectData.heightMM,
-      rotationDeg: this.objectData.rotationDeg,
-      assetId: this.objectData.assetId,
+      slotId: this.objectData.slotId,
     });
 
     this.objectId = id;
@@ -43,7 +32,7 @@ export class AddImageCommand implements Command {
 
   undo(manager: CanvasManager): void {
     if (!this.objectId) return;
-    const objectService = manager.getService<ObjectService>("objectService");
+    const objectService = manager.getService("objectService");
     if (!objectService) return;
     objectService.delete(this.objectId);
   }

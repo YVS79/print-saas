@@ -1,4 +1,4 @@
-import { Rect, type Canvas, type FabricObject } from "fabric";
+import type { Canvas, FabricObject } from "fabric";
 import { EventBus } from "./EventBus";
 import { mmToPx } from "./canvasConfig";
 import type { Slot } from "./types";
@@ -11,10 +11,12 @@ import type { Slot } from "./types";
  */
 export class SlotService {
   private canvas: Canvas | null = null;
+  private fabric: typeof import("fabric") | null = null;
 
   constructor(private eventBus: EventBus) {}
 
-  setCanvas(canvas: Canvas | null): void {
+  setCanvas(fabric: typeof import("fabric"), canvas: Canvas | null): void {
+    this.fabric = fabric;
     this.canvas = canvas;
   }
 
@@ -23,7 +25,9 @@ export class SlotService {
    * Слоты — это пунктирные рамки серого цвета, невыбираемые.
    */
   drawSlots(slots: Slot[]): void {
-    if (!this.canvas) return;
+    if (!this.canvas || !this.fabric) return;
+
+    const { Rect } = this.fabric;
 
     slots.forEach((slot) => {
       const xPx = mmToPx(slot.xMM);

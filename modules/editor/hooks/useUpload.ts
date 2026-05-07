@@ -10,7 +10,7 @@ export interface UploadResult {
 
 interface UseUploadReturn {
   uploadFile: (file: File) => Promise<UploadResult | null>;
-  getUploadUrl: (mimeType: string) => Promise<{ url: string; fields?: Record<string, string> } | null>;
+  getUploadUrl: (file: File) => Promise<{ url: string; fields?: Record<string, string> } | null>;
   isUploading: boolean;
   progress: number;
 }
@@ -23,12 +23,23 @@ export function useUpload(): UseUploadReturn {
   const [progress, setProgress] = useState(0);
 
   const getUploadUrl = useCallback(
-    async (mimeType: string): Promise<{ url: string; fields?: Record<string, string> } | null> => {
+    async (file: File): Promise<{ url: string; fields?: Record<string, string> } | null> => {
       try {
-        const res = await fetch(
-          `/api/assets/upload-url?mime_type=${encodeURIComponent(mimeType)}`,
-        );
+        const res = await fetch(`/api/assets/upload-url`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-shop-id": "00000000-0000-0000-0000-000000000000",
+            "x-user-id": "00000000-0000-0000-0000-000000000000",
+          },
+          body: JSON.stringify({
+            mimeType: file.type,
+            fileName: file.name,
+            sizeBytes: file.size,
+          }),
+        });
         if (!res.ok) {
+          console.error("Upload URL response:", res.status, await res.text());
           const body = await res.json().catch(() => ({}));
           throw new Error(body.error ?? "Failed to get upload URL");
         }
@@ -48,7 +59,7 @@ export function useUpload(): UseUploadReturn {
       setProgress(0);
 
       try {
-        const uploadData = await getUploadUrl(file.type);
+        const uploadData = await getUploadUrl(file);
         if (!uploadData) throw new Error("Failed to get upload URL");
 
         const result = await new Promise<UploadResult | null>((resolve, reject) => {

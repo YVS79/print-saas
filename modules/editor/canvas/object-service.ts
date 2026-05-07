@@ -1,4 +1,4 @@
-import { FabricImage, FabricText, type Canvas, type FabricObject } from "fabric";
+import type { Canvas, FabricObject } from "fabric";
 import { EventBus } from "./EventBus";
 import type { ObjectInfo } from "./types";
 import { mmToPx, pxToMm, ptToPx, pxToPt } from "./canvasConfig";
@@ -41,15 +41,20 @@ export function normalizeObject(
   };
 
   // Дополнительные поля в зависимости от типа
-  if (obj instanceof FabricImage) {
-    base.assetId = data.assetId;
-    base.type = "image";
-  } else if (obj instanceof FabricText) {
-    base.text = obj.text ?? "";
-    base.fontFamily = obj.fontFamily;
-    base.fontSizePt = pxToPt(obj.fontSize ?? 16);
-    base.color = obj.fill as string;
-    base.align = (obj.textAlign as "left" | "center" | "right") ?? "left";
+  // Определяем через duck-typing, т.к. FabricImage/FabricText не импортируются напрямую
+  if ((obj as any).text !== undefined) {
+    const textObj = obj as unknown as {
+      text?: string;
+      fontFamily?: string;
+      fontSize?: number;
+      fill?: string;
+      textAlign?: string;
+    };
+    base.text = textObj.text ?? "";
+    base.fontFamily = textObj.fontFamily;
+    base.fontSizePt = pxToPt(textObj.fontSize ?? 16);
+    base.color = textObj.fill as string;
+    base.align = (textObj.textAlign as "left" | "center" | "right") ?? "left";
   }
 
   return base;
@@ -68,11 +73,13 @@ function mapFabricType(fabricType: string): "image" | "text" | "shape" {
  */
 export class ObjectService {
   private canvas: Canvas | null = null;
+  private fabric: typeof import("fabric") | null = null;
 
   constructor(private eventBus: EventBus) {}
 
-  /** Устанавливает ссылку на канву (вызывается после init). */
-  setCanvas(canvas: Canvas | null): void {
+  /** Устанавливает ссылку на канву и модуль Fabric.js (вызывается после init). */
+  setCanvas(fabric: typeof import("fabric"), canvas: Canvas | null): void {
+    this.fabric = fabric;
     this.canvas = canvas;
   }
 
@@ -82,43 +89,38 @@ export class ObjectService {
    */
   async addImage(
     url: string,
-    options: {
-      xMM: number;
-      yMM: number;
-      widthMM: number;
-      heightMM: number;
-      rotationDeg?: number;
-      assetId?: string;
-    },
+    options?: { slotId?: string },
   ): Promise<string> {
-    if (!this.canvas) throw new Error("Canvas not initialized");
+    const fabric = this.fabric;
+    const canvas = this.canvas;
+    if (!fabric) throw new Error("Fabric not initialized");
+    if (!canvas) throw new Error("Canvas not initialized");
 
-    const objectId = generateId();
-    const img = await FabricImage.fromURL(url, {
-      crossOrigin: "anonymous",
-    });
+    // Используем FabricImage.fromURL для загрузки изображения (возвращает Promise)
+    const img = await fabric.FabricImage.fromURL(url);
 
-    // Масштабируем под заданные размеры в мм
-    const targetWidthPx = mmToPx(options.widthMM);
-    const targetHeightPx = mmToPx(options.heightMM);
+    // Используем встроенную функцию Fabric.js — подгоняем ширину фото под 80% холста
+    const maxWidth = canvas.width! * 0.8;
+    img.scaleToWidth(maxWidth);
+
+    // Центрируем фото на холсте (scale берётся после scaleToWidth)
+    img.left = (canvas.width! - img.width! * img.scaleX) / 2;
+    img.top = (canvas.height! - img.height! * img.scaleY) / 2;
+
+    // Дополнительные настройки для Fabric.js v6 (равномерное масштабирование и центрирование)
     img.set({
-      left: mmToPx(options.xMM),
-      top: mmToPx(options.yMM),
-      scaleX: targetWidthPx / (img.width ?? 1),
-      scaleY: targetHeightPx / (img.height ?? 1),
-      angle: options.rotationDeg ?? 0,
-      data: {
-        objectId,
-        role: "user",
-        assetId: options.assetId,
-      } as Record<string, unknown>,
+      uniformScaling: true,
+      centeredScaling: true,
     });
 
-    this.canvas.add(img);
-    this.canvas.renderAll();
+    if (options?.slotId) {
+      (img as any)._slotId = options.slotId;
+    }
 
-    this.eventBus.emit("objectAdded", { objectId });
-    return objectId;
+    canvas.add(img);
+    canvas.requestRenderAll();
+
+    return (img as any).id || "";
   }
 
   /**
@@ -137,8 +139,9 @@ export class ObjectService {
       align?: "left" | "center" | "right";
     },
   ): string {
-    if (!this.canvas) throw new Error("Canvas not initialized");
+    if (!this.canvas || !this.fabric) throw new Error("Canvas not initialized");
 
+    const { FabricText } = this.fabric;
     const objectId = generateId();
     const fontSizePx = ptToPx(options.fontSizePt ?? 24);
 
@@ -156,6 +159,13 @@ export class ObjectService {
       } as Record<string, unknown>,
     });
 
+    // Явно устанавливаем позицию и размер текста
+    textObj.left = this.canvas.width! / 2;
+    textObj.top = this.canvas.height! / 2;
+    textObj.fontSize = 40;
+    textObj.originX = "center";
+    textObj.originY = "center";
+
     this.canvas.add(textObj);
     this.canvas.renderAll();
 
@@ -168,10 +178,11 @@ export class ObjectService {
    * Принимает частичные данные в миллиметрах.
    */
   update(objectId: string, props: Partial<ObjectInfo>): void {
-    if (!this.canvas) return;
+    if (!this.canvas || !this.fabric) return;
     const obj = findObjectById(this.canvas, objectId);
     if (!obj) return;
 
+    const { FabricText } = this.fabric;
     const fabricProps: Record<string, unknown> = {};
 
     if (props.xMM !== undefined) fabricProps.left = mmToPx(props.xMM);

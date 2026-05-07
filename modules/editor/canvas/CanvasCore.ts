@@ -1,7 +1,7 @@
-import { Canvas, Rect } from "fabric";
 import { EventBus } from "./EventBus";
 import { mmToPx, pxToMm, getCanvasSize, type FormatKey } from "./canvasConfig";
 import type { Slot } from "./types";
+import { getFabric } from "./getFabric";
 
 export interface CanvasCoreOptions {
   format: FormatKey;
@@ -19,7 +19,8 @@ export interface CanvasCoreOptions {
  * - destroy
  */
 export class CanvasCore {
-  public canvas: Canvas | null = null;
+  public canvas: import("fabric").Canvas | null = null;
+  private fabric: typeof import("fabric") | null = null;
   private eventBus: EventBus;
   private format: FormatKey;
   private bleedMM: number;
@@ -33,10 +34,20 @@ export class CanvasCore {
   /**
    * Инициализирует Fabric.js канву на переданном HTML-элементе.
    */
-  init(canvasEl: HTMLCanvasElement): void {
+  async init(canvasEl: HTMLCanvasElement): Promise<void> {
+    const fabric = await getFabric();
+    this.fabric = fabric;
+
     const size = getCanvasSize(this.format, this.bleedMM);
 
-    this.canvas = new Canvas(canvasEl, {
+    // Явно устанавливаем размер canvas-элемента до инициализации Fabric.js
+    canvasEl.width = size.widthPx;
+    canvasEl.height = size.heightPx;
+
+    // Отключаем глобальное кэширование объектов для Fabric.js v6
+    fabric.FabricObject.ownDefaults.objectCaching = false;
+
+    this.canvas = new fabric.Canvas(canvasEl, {
       width: size.widthPx,
       height: size.heightPx,
       backgroundColor: "#ffffff",
@@ -45,6 +56,8 @@ export class CanvasCore {
       fireRightClick: false,
     });
 
+    console.log("CanvasCore.init: canvas created", this.canvas);
+
     this.eventBus.emit("canvasSizeChanged", {
       width: size.widthPx,
       height: size.heightPx,
@@ -52,12 +65,26 @@ export class CanvasCore {
   }
 
   /**
+   * Возвращает Fabric.js канву.
+   */
+  getCanvas(): import("fabric").Canvas | null {
+    return this.canvas;
+  }
+
+  /**
    * Устанавливает масштаб канвы.
    */
   setZoom(zoom: number): void {
     if (!this.canvas) return;
-    this.canvas.setZoom(zoom);
-    this.canvas.renderAll();
+    const { fabric } = this;
+    if (!fabric) return;
+
+    const centerPoint = new fabric.Point(
+      this.canvas.width! / 2,
+      this.canvas.height! / 2,
+    );
+    this.canvas.zoomToPoint(centerPoint, zoom);
+    this.canvas.requestRenderAll();
     this.eventBus.emit("zoomChanged", { zoom });
   }
 
@@ -83,8 +110,9 @@ export class CanvasCore {
    * Отрисовывает шаблонные элементы: область выпуска (bleed) и безопасную зону.
    */
   drawTemplateGuides(): void {
-    if (!this.canvas) return;
+    if (!this.canvas || !this.fabric) return;
 
+    const { Rect } = this.fabric;
     const size = getCanvasSize(this.format, this.bleedMM);
     const bleedPx = mmToPx(this.bleedMM);
 
@@ -151,7 +179,9 @@ export class CanvasCore {
    * Отрисовывает слоты шаблона.
    */
   private drawSlots(slots: Slot[]): void {
-    if (!this.canvas) return;
+    if (!this.canvas || !this.fabric) return;
+
+    const { Rect } = this.fabric;
 
     slots.forEach((slot) => {
       const xPx = mmToPx(slot.xMM);

@@ -35,7 +35,12 @@ export function useTemplate(): UseTemplateReturn {
       dispatch({ type: "SET_LOADING", payload: true });
       try {
         const params = format ? `?format=${format}` : "";
-        const res = await fetch(`/api/templates${params}`);
+        const res = await fetch(`/api/templates${params}`, {
+          headers: {
+            'x-shop-id': '00000000-0000-0000-0000-000000000000',
+            'x-user-id': '00000000-0000-0000-0000-000000000000',
+          },
+        });
         if (!res.ok) {
           const body = await res.json().catch(() => ({}));
           throw new Error(body.error ?? "Failed to fetch templates");

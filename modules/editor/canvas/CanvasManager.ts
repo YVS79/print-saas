@@ -9,6 +9,7 @@ import { SlotService } from "./slot-service";
 import type { FormatKey } from "./canvasConfig";
 import type { Command } from "./commands/Command";
 import type { Slot } from "./types";
+import { getFabric } from "./getFabric";
 
 type ServiceMap = {
   objectService: ObjectService;
@@ -31,51 +32,49 @@ export class CanvasManager {
   public readonly slotService: SlotService;
 
   private services: Array<{ destroy(): void }> = [];
+  private fabric: typeof import("fabric") | null = null;
 
   constructor(format: FormatKey, bleedMM: number) {
     this.eventBus = new EventBus();
 
     this.core = new CanvasCore({ format, bleedMM, eventBus: this.eventBus });
+
     this.objectService = new ObjectService(this.eventBus);
     this.selectionService = new SelectionService(this.eventBus);
-    this.historyService = new HistoryService(this.eventBus);
+    this.historyService = new HistoryService();
     this.exportService = new ExportService();
     this.slotService = new SlotService(this.eventBus);
 
     this.services = [
+      this.core,
+      this.objectService,
       this.selectionService,
+      this.historyService,
       this.exportService,
       this.slotService,
     ];
   }
 
   /**
-   * Возвращает сервис по имени для команд.
+   * Инициализирует холст и связывает все сервисы.
    */
-  getService<T>(name: keyof ServiceMap): T {
-    return (this as any)[name] as T;
+  async init(canvasEl: HTMLCanvasElement): Promise<void> {
+    await this.core.init(canvasEl);
+
+    const fabric = await getFabric();
+    this.fabric = fabric;
+
+    // Прокидываем канву в сервисы
+    this.objectService.setCanvas(fabric, this.core.canvas);
+    this.selectionService.setCanvas(this.core.canvas);
+    this.slotService.setCanvas(this.core.canvas);
   }
 
   /**
-   * Инициализирует канву на элементе <canvas>.
+   * Получает сервис по имени.
    */
-  init(canvasEl: HTMLCanvasElement): void {
-    this.core.init(canvasEl);
-    this.core.drawTemplateGuides();
-
-    const canvas = this.core.canvas;
-    this.objectService.setCanvas(canvas);
-    this.selectionService.setCanvas(canvas);
-    this.exportService.setCanvas(canvas);
-    this.slotService.setCanvas(canvas);
-    this.historyService.setManager(this);
-  }
-
-  /**
-   * Загружает шаблон на холст (очищает user/slot, рисует направляющие и слоты).
-   */
-  setTemplate(slots: Slot[]): void {
-    this.core.setTemplate(slots);
+  getService<K extends keyof ServiceMap>(name: K): ServiceMap[K] {
+    return this[name];
   }
 
   /**
@@ -115,6 +114,20 @@ export class CanvasManager {
   }
 
   /**
+   * Получает Fabric.js канву (алиас для getCanvas).
+   */
+  getFabricCanvas(): Canvas | null {
+    return this.core.getCanvas();
+  }
+
+  /**
+   * Получает загруженный модуль Fabric.js.
+   */
+  getFabric(): typeof import("fabric") | null {
+    return this.fabric;
+  }
+
+  /**
    * Уничтожает менеджер и все сервисы.
    */
   destroy(): void {
@@ -124,5 +137,6 @@ export class CanvasManager {
     this.services = [];
     this.core.destroy();
     this.eventBus.clear();
+    this.fabric = null;
   }
 }

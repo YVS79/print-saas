@@ -2,7 +2,7 @@
 
 import React, { useCallback } from "react";
 import { EditorProvider, useEditorContext } from "@/modules/editor/store/EditorContext";
-import { EditorCanvas } from "@/modules/editor/components/EditorCanvas";
+import EditorCanvas from "@/modules/editor/components/EditorCanvas";
 import { TemplateSelector } from "@/modules/editor/components/TemplateSelector";
 import { PhotoPanel } from "@/modules/editor/components/PhotoPanel";
 import { TextPanel } from "@/modules/editor/components/TextPanel";
