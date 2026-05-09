@@ -42,17 +42,35 @@ function EditorContent() {
 
       dispatch({ type: "SET_LOADING", payload: true });
       try {
+        // Меняем размер холста под формат шаблона
+        const newFormat = template.format;
+        const newWidthMM = Number(template.width_mm);
+        const newHeightMM = Number(template.height_mm);
+
+        manager.setCanvasSize(newFormat, 3);
+
         if (template.base_design_id) {
           const ok = await loadDesign(manager, template.base_design_id);
-          if (ok) return;
+          if (ok) {
+            dispatch({
+              type: "SET_LOADED",
+              payload: {
+                format: newFormat,
+                widthMM: newWidthMM,
+                heightMM: newHeightMM,
+                bleedMM: 3,
+              },
+            });
+            return;
+          }
         }
         manager.setTemplate([]);
         dispatch({
           type: "SET_LOADED",
           payload: {
-            format: template.format,
-            widthMM: Number(template.width_mm),
-            heightMM: Number(template.height_mm),
+            format: newFormat,
+            widthMM: newWidthMM,
+            heightMM: newHeightMM,
             bleedMM: 3,
           },
         });

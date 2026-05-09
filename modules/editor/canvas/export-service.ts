@@ -1,5 +1,5 @@
 import { type Canvas, type FabricObject } from "fabric";
-import { pxToMm } from "./canvasConfig";
+import { pxToMm, pxToPt } from "./canvasConfig";
 import type { CanvasDesignObject, ObjectRole } from "./types";
 
 /**
@@ -102,7 +102,7 @@ export class ExportService {
       };
       base.text = textObj.text ?? "";
       base.fontFamily = textObj.fontFamily ?? "Arial";
-      base.fontSizePt = pxToMm(textObj.fontSize ?? 16);
+  base.fontSizePt = pxToPt(textObj.fontSize ?? 16);
       base.color = (textObj.fill as string) ?? "#000000";
       base.align = (textObj.textAlign as "left" | "center" | "right") ?? "left";
     }

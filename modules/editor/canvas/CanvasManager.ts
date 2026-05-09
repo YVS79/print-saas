@@ -41,15 +41,13 @@ export class CanvasManager {
 
     this.objectService = new ObjectService(this.eventBus);
     this.selectionService = new SelectionService(this.eventBus);
-    this.historyService = new HistoryService();
+    this.historyService = new HistoryService(this.eventBus);
     this.exportService = new ExportService();
     this.slotService = new SlotService(this.eventBus);
 
     this.services = [
       this.core,
-      this.objectService,
       this.selectionService,
-      this.historyService,
       this.exportService,
       this.slotService,
     ];
@@ -67,7 +65,7 @@ export class CanvasManager {
     // Прокидываем канву в сервисы
     this.objectService.setCanvas(fabric, this.core.canvas);
     this.selectionService.setCanvas(this.core.canvas);
-    this.slotService.setCanvas(this.core.canvas);
+    this.slotService.setCanvas(fabric, this.core.canvas);
   }
 
   /**
@@ -97,6 +95,21 @@ export class CanvasManager {
    */
   redo(): void {
     this.historyService.redo();
+  }
+
+  /**
+   * Изменяет размер холста под новый формат + bleed.
+   * Сохраняет все user-объекты, перерисовывает направляющие.
+   */
+  setCanvasSize(format: FormatKey, bleedMM: number): void {
+    this.core.setCanvasSize(format, bleedMM);
+  }
+
+  /**
+   * Загружает шаблон — очищает user/slot объекты и рисует слоты.
+   */
+  setTemplate(slots: Slot[]): void {
+    this.core.setTemplate(slots);
   }
 
   /**

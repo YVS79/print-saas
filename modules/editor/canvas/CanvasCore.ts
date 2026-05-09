@@ -33,23 +33,24 @@ export class CanvasCore {
 
   /**
    * Инициализирует Fabric.js канву на переданном HTML-элементе.
+   * Принудительно устанавливает A4 (2480×3508 px при 300 DPI).
    */
   async init(canvasEl: HTMLCanvasElement): Promise<void> {
     const fabric = await getFabric();
     this.fabric = fabric;
 
-    const size = getCanvasSize(this.format, this.bleedMM);
-
-    // Явно устанавливаем размер canvas-элемента до инициализации Fabric.js
-    canvasEl.width = size.widthPx;
-    canvasEl.height = size.heightPx;
+    // Принудительно устанавливаем A4 при 300 DPI (210×297 мм)
+    const DEFAULT_WIDTH = 2480;
+    const DEFAULT_HEIGHT = 3508;
+    canvasEl.width = DEFAULT_WIDTH;
+    canvasEl.height = DEFAULT_HEIGHT;
 
     // Отключаем глобальное кэширование объектов для Fabric.js v6
     fabric.FabricObject.ownDefaults.objectCaching = false;
 
     this.canvas = new fabric.Canvas(canvasEl, {
-      width: size.widthPx,
-      height: size.heightPx,
+      width: DEFAULT_WIDTH,
+      height: DEFAULT_HEIGHT,
       backgroundColor: "#ffffff",
       preserveObjectStacking: true,
       stopContextMenu: true,
@@ -57,8 +58,8 @@ export class CanvasCore {
     });
 
     this.eventBus.emit("canvasSizeChanged", {
-      width: size.widthPx,
-      height: size.heightPx,
+      width: DEFAULT_WIDTH,
+      height: DEFAULT_HEIGHT,
     });
   }
 
@@ -207,6 +208,43 @@ export class CanvasCore {
       });
 
       this.canvas!.add(slotRect);
+    });
+  }
+
+  /**
+   * Изменяет размер холста под новый формат.
+   * Сохраняет все user-объекты, перерисовывает направляющие.
+   */
+  setCanvasSize(format: FormatKey, bleedMM: number): void {
+    if (!this.canvas) return;
+
+    this.format = format;
+    this.bleedMM = bleedMM;
+
+    const size = getCanvasSize(format, bleedMM);
+
+    // Меняем размер канвы
+    this.canvas.setWidth(size.widthPx);
+    this.canvas.setHeight(size.heightPx);
+    const el = this.canvas.getElement();
+    el.width = size.widthPx;
+    el.height = size.heightPx;
+
+    // Удаляем старые направляющие (template/slot объекты)
+    const toRemove = this.canvas.getObjects().filter((obj) => {
+      const role = (obj as any).data?.role;
+      return role === "template" || role === "slot";
+    });
+    toRemove.forEach((obj) => this.canvas!.remove(obj));
+
+    // Перерисовываем направляющие
+    this.drawTemplateGuides();
+
+    this.canvas.renderAll();
+
+    this.eventBus.emit("canvasSizeChanged", {
+      width: size.widthPx,
+      height: size.heightPx,
     });
   }
 

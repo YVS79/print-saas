@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, type RefObject } from "react";
+import React, { useEffect, useState, useRef, type RefObject } from "react";
 import { useCanvasManager } from "../hooks/useCanvasManager";
 import { useEditorContext } from "../store/EditorContext";
 import type { CanvasManager } from "../canvas/CanvasManager";
@@ -9,17 +9,10 @@ import type { FormatKey } from "../canvas/canvasConfig";
 interface EditorCanvasProps {
   format: FormatKey;
   bleedMM?: number;
-  /** Внешний canvasRef — если CanvasManager создан в родителе */
   externalCanvasRef?: RefObject<HTMLCanvasElement | null>;
-  /** Внешний getManager — если CanvasManager создан в родителе */
   externalGetManager?: () => CanvasManager | null;
 }
 
-/**
- * EditorCanvas — компонент-обёртка для Fabric.js канвы.
- * Если передан externalCanvasRef и externalGetManager — использует их,
- * иначе создаёт свои (автономный режим).
- */
 function EditorCanvas({
   format,
   bleedMM = 3,
@@ -29,28 +22,66 @@ function EditorCanvas({
   const { canvasRef: internalCanvasRef, setZoom } = useCanvasManager(format, bleedMM);
   const { state } = useEditorContext();
 
-  // Флаг гидратации – предотвращает ошибку React hydration mismatch
-  // (на сервере state.error === null, на клиенте может стать не-null)
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => {
     setHydrated(true);
   }, []);
 
-  // Используем внешний или внутренний ref
   const canvasRef = externalCanvasRef ?? internalCanvasRef;
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  // Fit-to-screen при загрузке
+  // Логика автоматического зума — запускается безусловно при монтировании контейнера
   useEffect(() => {
-    if (state.isLoaded) {
-      setZoom(0.5);
-    }
-  }, [state.isLoaded, setZoom]);
+    const container = containerRef.current;
+    const canvas = canvasRef.current;
+    if (!container || !canvas) return;
+
+    const updateZoom = () => {
+      const containerW = container.clientWidth;
+      const containerH = container.clientHeight;
+      if (containerW <= 0 || containerH <= 0) return;
+
+      // Если canvas ещё не инициализирован Fabric.js — пропускаем
+      if (!canvas.width || !canvas.height) return;
+
+      // Вычисляем внутренний размер холста в пикселях (300 DPI)
+      const canvasPixelW = ((state.widthMM + state.bleedMM * 2) * 300) / 25.4;
+      const canvasPixelH = ((state.heightMM + state.bleedMM * 2) * 300) / 25.4;
+
+      // Защита от деления на ноль
+      if (canvasPixelW <= 0 || canvasPixelH <= 0) return;
+
+      const scaleX = containerW / canvasPixelW;
+      const scaleY = containerH / canvasPixelH;
+      const zoom = Math.min(scaleX, scaleY);
+
+      setZoom(zoom);
+    };
+
+    // Безусловный запуск зума при монтировании
+    updateZoom();
+
+    // Следим за изменением размера контейнера
+    const observer = new ResizeObserver(() => {
+      updateZoom();
+    });
+    observer.observe(container);
+
+    return () => observer.disconnect();
+  }, [state.format, state.widthMM, state.heightMM, state.bleedMM, setZoom, canvasRef]);
 
   return (
-    <div className="relative flex-1 flex items-center justify-center bg-gray-100 overflow-hidden">
+    <div
+      ref={containerRef}
+      className="relative flex-1 flex items-center justify-center bg-gray-100 overflow-hidden"
+    >
       <canvas
         ref={canvasRef as RefObject<HTMLCanvasElement | null>}
         className="shadow-xl"
+        style={{
+          maxWidth: '100%',
+          maxHeight: '100%',
+        }}
       />
     </div>
   );

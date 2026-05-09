@@ -19,7 +19,7 @@ export class UpdateTextCommand implements Command {
   }
 
   async execute(manager: CanvasManager): Promise<void> {
-    const objectService = manager.getService<ObjectService>("objectService");
+    const objectService: ObjectService = manager.getService("objectService");
     if (!objectService) return;
 
     const currentInfo = objectService.getObjectInfo(this.objectId);
@@ -44,7 +44,7 @@ export class UpdateTextCommand implements Command {
 
   undo(manager: CanvasManager): void {
     if (!this.previousState) return;
-    const objectService = manager.getService<ObjectService>("objectService");
+    const objectService: ObjectService = manager.getService("objectService");
     if (!objectService) return;
     objectService.update(this.objectId, this.previousState);
   }

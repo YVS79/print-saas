@@ -39,12 +39,16 @@ export function useCanvasManager(format: FormatKey, bleedMM: number) {
       dispatch({ type: "SET_HISTORY", payload: { canUndo, canRedo } });
     });
 
+    // Устанавливаем A4 по умолчанию (210×297 мм) — переопределится при выборе шаблона
+    const defaultWidthMM = 210;
+    const defaultHeightMM = 297;
+
     dispatch({
       type: "SET_LOADED",
       payload: {
         format,
-        widthMM: 0, // будет установлено при загрузке шаблона
-        heightMM: 0,
+        widthMM: defaultWidthMM,
+        heightMM: defaultHeightMM,
         bleedMM,
       },
     });
@@ -74,6 +78,7 @@ export function useCanvasManager(format: FormatKey, bleedMM: number) {
   }, [initCanvas, canvasRef.current, dispatch]);
 
   const setZoom = useCallback((zoom: number) => {
+    console.log('Вызван setZoom с зумом:', zoom);
     managerRef.current?.setZoom(zoom);
   }, []);
 

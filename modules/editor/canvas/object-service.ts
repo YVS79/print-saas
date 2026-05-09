@@ -87,30 +87,37 @@ export class ObjectService {
    * Добавляет изображение на холст из URL.
    * Возвращает ID созданного объекта.
    */
-  async addImage(
-    url: string,
-    options?: { slotId?: string },
-  ): Promise<string> {
+  async addImage(url: string, options?: { slotId?: string }): Promise<string> {
     const fabric = this.fabric;
     const canvas = this.canvas;
-    if (!fabric) throw new Error("Fabric not initialized");
-    if (!canvas) throw new Error("Canvas not initialized");
+    if (!fabric) throw new Error('Fabric not initialized');
+    if (!canvas) throw new Error('Canvas not initialized');
 
-    // Используем FabricImage.fromURL для загрузки изображения (возвращает Promise)
-    const img = await fabric.FabricImage.fromURL(url);
+    const img = await fabric.FabricImage.fromURL(url, {
+      crossOrigin: 'anonymous',
+    });
 
-    // Используем встроенную функцию Fabric.js — подгоняем ширину фото под 80% холста
-    const maxWidth = canvas.width! * 0.8;
-    img.scaleToWidth(maxWidth);
+    const canvasWidth = canvas.getWidth();
+    const canvasHeight = canvas.getHeight();
+    const imgWidth = img.width || 1;
+    const imgHeight = img.height || 1;
 
-    // Центрируем фото на холсте (scale берётся после scaleToWidth)
-    img.left = (canvas.width! - img.width! * img.scaleX) / 2;
-    img.top = (canvas.height! - img.height! * img.scaleY) / 2;
+    // Масштабируем, чтобы фото занимало не более 90% холста
+    const padding = 0.9;
+    const scale = Math.min(
+      1,
+      (canvasWidth * padding) / imgWidth,
+      (canvasHeight * padding) / imgHeight
+    );
 
-    // Дополнительные настройки для Fabric.js v6 (равномерное масштабирование и центрирование)
     img.set({
+      scaleX: scale,
+      scaleY: scale,
+      left: canvasWidth / 2,
+      top: canvasHeight / 2,
+      originX: 'center',
+      originY: 'center',
       uniformScaling: true,
-      centeredScaling: true,
     });
 
     if (options?.slotId) {
@@ -118,9 +125,10 @@ export class ObjectService {
     }
 
     canvas.add(img);
+    canvas.setActiveObject(img);
     canvas.requestRenderAll();
 
-    return (img as any).id || "";
+    return (img as any).id || '';
   }
 
   /**

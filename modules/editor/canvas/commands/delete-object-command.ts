@@ -17,7 +17,7 @@ export class DeleteObjectCommand implements Command {
   }
 
   async execute(manager: CanvasManager): Promise<void> {
-    const objectService = manager.getService<ObjectService>("objectService");
+    const objectService: ObjectService = manager.getService("objectService");
     if (!objectService) return;
 
     this.deletedObjectSnapshot = objectService.getObjectInfo(this.objectId);
@@ -28,7 +28,7 @@ export class DeleteObjectCommand implements Command {
     if (!this.deletedObjectSnapshot) return;
 
     const snapshot = this.deletedObjectSnapshot as unknown as ObjectInfo;
-    const objectService = manager.getService<ObjectService>("objectService");
+    const objectService: ObjectService = manager.getService("objectService");
     if (!objectService) return;
 
     if (snapshot.type === "text" && snapshot.text !== undefined) {
