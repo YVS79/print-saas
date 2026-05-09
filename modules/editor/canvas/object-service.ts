@@ -120,6 +120,9 @@ export class ObjectService {
       uniformScaling: true,
     });
 
+    // Обновляем координаты после set, чтобы избежать искажения пропорций
+    img.setCoords();
+
     if (options?.slotId) {
       (img as any)._slotId = options.slotId;
     }

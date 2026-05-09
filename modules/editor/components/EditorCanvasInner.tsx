@@ -30,13 +30,17 @@ function EditorCanvas({
   const canvasRef = externalCanvasRef ?? internalCanvasRef;
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Логика автоматического зума — запускается безусловно при монтировании контейнера
+  // Логика автоматического зума
   useEffect(() => {
     const container = containerRef.current;
     const canvas = canvasRef.current;
     if (!container || !canvas) return;
 
+    let mounted = true;
+
     const updateZoom = () => {
+      if (!mounted) return;
+
       const containerW = container.clientWidth;
       const containerH = container.clientHeight;
       if (containerW <= 0 || containerH <= 0) return;
@@ -44,21 +48,14 @@ function EditorCanvas({
       // Если canvas ещё не инициализирован Fabric.js — пропускаем
       if (!canvas.width || !canvas.height) return;
 
-      // Вычисляем внутренний размер холста в пикселях (300 DPI)
-      const canvasPixelW = ((state.widthMM + state.bleedMM * 2) * 300) / 25.4;
-      const canvasPixelH = ((state.heightMM + state.bleedMM * 2) * 300) / 25.4;
-
-      // Защита от деления на ноль
-      if (canvasPixelW <= 0 || canvasPixelH <= 0) return;
-
-      const scaleX = containerW / canvasPixelW;
-      const scaleY = containerH / canvasPixelH;
-      const zoom = Math.min(scaleX, scaleY);
+      const scaleX = containerW / canvas.width;
+      const scaleY = containerH / canvas.height;
+      const zoom = Math.max(0.05, Math.min(scaleX, scaleY));
 
       setZoom(zoom);
     };
 
-    // Безусловный запуск зума при монтировании
+    // Первичный запуск зума
     updateZoom();
 
     // Следим за изменением размера контейнера
@@ -67,8 +64,11 @@ function EditorCanvas({
     });
     observer.observe(container);
 
-    return () => observer.disconnect();
-  }, [state.format, state.widthMM, state.heightMM, state.bleedMM, setZoom, canvasRef]);
+    return () => {
+      mounted = false;
+      observer.disconnect();
+    };
+  }, [setZoom, canvasRef]);
 
   return (
     <div
@@ -79,8 +79,9 @@ function EditorCanvas({
         ref={canvasRef as RefObject<HTMLCanvasElement | null>}
         className="shadow-xl"
         style={{
-          maxWidth: '100%',
-          maxHeight: '100%',
+          width: '100%',
+          height: '100%',
+          objectFit: 'contain',
         }}
       />
     </div>
