@@ -101,15 +101,12 @@ export class ObjectService {
     const canvasHeight = canvas.getHeight();
     const imgWidth = img.width || 1;
     const imgHeight = img.height || 1;
-
-    // Масштабируем, чтобы фото занимало не более 90% холста
-    const padding = 0.9;
+    const padding = 0.95;
     const scale = Math.min(
       1,
       (canvasWidth * padding) / imgWidth,
       (canvasHeight * padding) / imgHeight
     );
-
     img.set({
       scaleX: scale,
       scaleY: scale,
@@ -117,11 +114,7 @@ export class ObjectService {
       top: canvasHeight / 2,
       originX: 'center',
       originY: 'center',
-      uniformScaling: true,
     });
-
-    // Обновляем координаты после set, чтобы избежать искажения пропорций
-    img.setCoords();
 
     if (options?.slotId) {
       (img as any)._slotId = options.slotId;

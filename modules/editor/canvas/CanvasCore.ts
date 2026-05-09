@@ -39,6 +39,8 @@ export class CanvasCore {
       fireRightClick: false,
     });
 
+    this.canvas!.requestRenderAll();
+
     this.eventBus.emit("canvasSizeChanged", { width: size.widthPx, height: size.heightPx });
   }
 
