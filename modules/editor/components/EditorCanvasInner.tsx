@@ -35,9 +35,8 @@ function EditorCanvas({
         ref={canvasRef as RefObject<HTMLCanvasElement | null>}
         className="shadow-xl"
         style={{
-          width: '100%',
-          height: '100%',
-          objectFit: 'contain',
+          maxWidth: '100%',
+          maxHeight: '100%',
         }}
       />
     </div>

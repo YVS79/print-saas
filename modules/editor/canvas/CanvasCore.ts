@@ -39,6 +39,10 @@ export class CanvasCore {
       fireRightClick: false,
     });
 
+    // Фиксированный начальный зум для отображения A4 на экране
+    this.canvas!.setZoom(0.2);
+    this.canvas!.requestRenderAll();
+
     this.eventBus.emit("canvasSizeChanged", { width: size.widthPx, height: size.heightPx });
   }
 
