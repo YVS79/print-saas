@@ -33,24 +33,25 @@ export class CanvasCore {
 
   /**
    * Инициализирует Fabric.js канву на переданном HTML-элементе.
-   * Принудительно устанавливает A4 (2480×3508 px при 300 DPI).
+   * Размер холста рассчитывается из формата A4 + bleed.
    */
   async init(canvasEl: HTMLCanvasElement): Promise<void> {
     const fabric = await getFabric();
     this.fabric = fabric;
 
-    // Принудительно устанавливаем A4 при 300 DPI (210×297 мм)
-    const DEFAULT_WIDTH = 2480;
-    const DEFAULT_HEIGHT = 3508;
-    canvasEl.width = DEFAULT_WIDTH;
-    canvasEl.height = DEFAULT_HEIGHT;
+    // Размер A4 с bleed при 300 DPI
+    const size = getCanvasSize("A4", this.bleedMM);
+
+    // Явно устанавливаем размер canvas-элемента до инициализации Fabric.js
+    canvasEl.width = size.widthPx;
+    canvasEl.height = size.heightPx;
 
     // Отключаем глобальное кэширование объектов для Fabric.js v6
     fabric.FabricObject.ownDefaults.objectCaching = false;
 
     this.canvas = new fabric.Canvas(canvasEl, {
-      width: DEFAULT_WIDTH,
-      height: DEFAULT_HEIGHT,
+      width: size.widthPx,
+      height: size.heightPx,
       backgroundColor: "#ffffff",
       preserveObjectStacking: true,
       stopContextMenu: true,
@@ -58,8 +59,8 @@ export class CanvasCore {
     });
 
     this.eventBus.emit("canvasSizeChanged", {
-      width: DEFAULT_WIDTH,
-      height: DEFAULT_HEIGHT,
+      width: size.widthPx,
+      height: size.heightPx,
     });
   }
 
