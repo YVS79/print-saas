@@ -89,42 +89,44 @@ export class ObjectService {
    */
   async addImage(url: string, options?: { slotId?: string }): Promise<string> {
     const fabric = this.fabric;
-    const canvas = this.canvas;
     if (!fabric) throw new Error('Fabric not initialized');
-    if (!canvas) throw new Error('Canvas not initialized');
+    if (!this.canvas) throw new Error('Canvas not initialized');
 
-    const img = await fabric.FabricImage.fromURL(url, {
-      crossOrigin: 'anonymous',
+    // 1. Загружаем изображение как HTMLImageElement для точных размеров
+    const imgElement = new Image();
+    imgElement.crossOrigin = 'anonymous';
+    await new Promise<void>((resolve, reject) => {
+      imgElement.onload = () => resolve();
+      imgElement.onerror = () => reject(new Error('Failed to load image'));
+      imgElement.src = url;
     });
 
-    const canvasWidth = canvas.getWidth();
-    const canvasHeight = canvas.getHeight();
-    const imgWidth = img.width || 1;
-    const imgHeight = img.height || 1;
-    const padding = 0.95;
-    const scale = Math.min(
-      1,
-      (canvasWidth * padding) / imgWidth,
-      (canvasHeight * padding) / imgHeight
-    );
-    img.set({
-      scaleX: scale,
-      scaleY: scale,
-      left: canvasWidth / 2,
-      top: canvasHeight / 2,
+    // 2. Создаём FabricImage из HTMLImageElement
+    const fabricImage = new fabric.FabricImage(imgElement, {
+      left: this.canvas.width! / 2,
+      top: this.canvas.height! / 2,
       originX: 'center',
       originY: 'center',
     });
 
+    // 3. Вычисляем ОДИНАКОВЫЙ масштаб для X и Y, чтобы фото помещалось в 95% холста
+    const maxWidth = this.canvas.width! * 0.95;
+    const maxHeight = this.canvas.height! * 0.95;
+    const scale = Math.min(1, maxWidth / fabricImage.width!, maxHeight / fabricImage.height!);
+
+    // 4. Применяем одинаковый масштаб по X и Y
+    fabricImage.scaleX = scale;
+    fabricImage.scaleY = scale;
+
     if (options?.slotId) {
-      (img as any)._slotId = options.slotId;
+      (fabricImage as any)._slotId = options.slotId;
     }
 
-    canvas.add(img);
-    canvas.setActiveObject(img);
-    canvas.requestRenderAll();
+    this.canvas.add(fabricImage);
+    this.canvas.setActiveObject(fabricImage);
+    this.canvas.requestRenderAll();
 
-    return (img as any).id || '';
+    return (fabricImage as any).id || '';
   }
 
   /**
