@@ -41,8 +41,11 @@ export class CanvasCore {
 
     this.eventBus.emit("canvasSizeChanged", { width: size.widthPx, height: size.heightPx });
 
-    // Устанавливаем зум "вписать в контейнер" после того, как DOM отрисован
-    requestAnimationFrame(() => this.fitToContainer());
+    // Устанавливаем зум "вписать в контейнер" и рисуем bleed-рамку
+    requestAnimationFrame(() => {
+      this.fitToContainer();
+      this.drawTemplateGuides();
+    });
   }
 
   getCanvas(): import("fabric").Canvas | null {
