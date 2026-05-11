@@ -121,22 +121,6 @@ export class CanvasCore {
     if (!this.canvas || !this.fabric) return;
     const { Rect } = this.fabric;
     const size = getCanvasSize(this.format, this.bleedMM);
-    const bleedPx = (this.bleedMM * 300) / 25.4;
-
-    const safeRect = new Rect({
-      left: bleedPx,
-      top: bleedPx,
-      width: size.widthPx - bleedPx * 2,
-      height: size.heightPx - bleedPx * 2,
-      fill: "transparent",
-      stroke: "blue",
-      strokeWidth: 1,
-      strokeDashArray: [6, 3] as any,
-      selectable: false,
-      evented: false,
-      excludeFromExport: true,
-      data: { role: "template", type: "safe_zone" } as Record<string, unknown>,
-    });
 
     const bleedRect = new Rect({
       left: 0,
@@ -152,8 +136,7 @@ export class CanvasCore {
       data: { role: "template", type: "bleed" } as Record<string, unknown>,
     });
 
-    this.canvas.insertAt(0, safeRect);
-    this.canvas.insertAt(1, bleedRect);
+    this.canvas.insertAt(0, bleedRect);
     this.canvas.renderAll();
   }
 
