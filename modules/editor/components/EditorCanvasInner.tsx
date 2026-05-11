@@ -31,13 +31,14 @@ function EditorCanvas({
 
   return (
     <div className="relative flex-1 flex items-center justify-center bg-gray-100 overflow-hidden">
+      {/*
+        Fabric сам управляет canvas-элементом (создаёт .canvas-container wrapper,
+        ставит inline-стили width/height). Наша задача — только центрировать.
+        Зум "вписать в контейнер" устанавливается в CanvasCore.init().
+      */}
       <canvas
         ref={canvasRef as RefObject<HTMLCanvasElement | null>}
         className="shadow-xl"
-        style={{
-          maxWidth: '100%',
-          maxHeight: '100%',
-        }}
       />
     </div>
   );

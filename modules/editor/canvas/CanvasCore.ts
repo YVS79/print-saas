@@ -39,9 +39,10 @@ export class CanvasCore {
       fireRightClick: false,
     });
 
-    this.canvas!.requestRenderAll();
-
     this.eventBus.emit("canvasSizeChanged", { width: size.widthPx, height: size.heightPx });
+
+    // Устанавливаем зум "вписать в контейнер" после того, как DOM отрисован
+    requestAnimationFrame(() => this.fitToContainer());
   }
 
   getCanvas(): import("fabric").Canvas | null {
@@ -69,6 +70,52 @@ export class CanvasCore {
       width: this.canvas.getWidth(),
       height: this.canvas.getHeight(),
     };
+  }
+
+  /**
+   * Вписывает холст в родительский контейнер, сохраняя пропорции.
+   *
+   * Проблема: Fabric создаёт .canvas-container wrapper размером canvas (2551×3579).
+   * После zoomToPoint центр контента (1275, 1789) рендерится за пределами видимой
+   * области родителя (1408×1032), т.к. wrapper прижат к (0,0).
+   *
+   * Решение:
+   * 1. Fabric zoom через viewportTransform [zoom, 0, 0, zoom, 0, 0] — scale без translate
+   * 2. Ресайзим wrapper под zoom-размер (714×1002)
+   * 3. Центрируем wrapper в родителе через absolute positioning
+   */
+  fitToContainer(): void {
+    if (!this.canvas || !this.fabric) return;
+
+    const wrapper = this.canvas.getElement().parentElement;
+    if (!wrapper) return;
+    const parent = wrapper.parentElement;
+    if (!parent) return;
+
+    const canvasW = this.canvas.getWidth();
+    const canvasH = this.canvas.getHeight();
+    const parentW = parent.clientWidth;
+    const parentH = parent.clientHeight;
+
+    if (canvasW === 0 || canvasH === 0 || parentW === 0 || parentH === 0) return;
+
+    // Zoom чтобы canvas вписался в контейнер
+    const zoom = Math.min(parentW / canvasW, parentH / canvasH) * 0.98;
+
+    // Resize wrapper до zoom-размера и центрируем в родителе
+    const zw = Math.round(canvasW * zoom);
+    const zh = Math.round(canvasH * zoom);
+    wrapper.style.width = zw + 'px';
+    wrapper.style.height = zh + 'px';
+    wrapper.style.left = Math.round((parentW - zw) / 2) + 'px';
+    wrapper.style.top = Math.round((parentH - zh) / 2) + 'px';
+    wrapper.style.position = 'absolute';
+
+    // Fabric zoom — viewportTransform [zoom, 0, 0, zoom, 0, 0]
+    // Контент масштабируется от (0,0) wrapper'а, без translate
+    this.canvas.viewportTransform = [zoom, 0, 0, zoom, 0, 0];
+    this.canvas.requestRenderAll();
+    this.eventBus.emit("zoomChanged", { zoom });
   }
 
   drawTemplateGuides(): void {
