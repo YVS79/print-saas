@@ -213,6 +213,7 @@ export class CanvasCore {
     toRemove.forEach((obj) => this.canvas!.remove(obj));
     this.drawTemplateGuides();
     this.canvas.renderAll();
+    this.fitToContainer();
     this.eventBus.emit("canvasSizeChanged", { width: size.widthPx, height: size.heightPx });
   }
 

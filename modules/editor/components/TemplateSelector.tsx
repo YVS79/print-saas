@@ -15,20 +15,21 @@ interface TemplateItem {
 
 interface TemplateSelectorProps {
   onSelect: (template: TemplateItem) => void;
+  onFormatChange?: (format: Format) => void;
 }
 
 /**
  * TemplateSelector — панель выбора шаблона.
  * Загружает список шаблонов с API и позволяет выбрать один.
  */
-export function TemplateSelector({ onSelect }: TemplateSelectorProps) {
+export function TemplateSelector({ onSelect, onFormatChange }: TemplateSelectorProps) {
   const { fetchTemplates, isLoading } = useTemplate();
   const [templates, setTemplates] = useState<TemplateItem[]>([]);
-  const [formatFilter, setFormatFilter] = useState<Format | "">("");
+  const [formatFilter, setFormatFilter] = useState<Format>("A4");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchTemplates(formatFilter || undefined)
+    fetchTemplates(formatFilter)
       .then((data) => {
         setTemplates(data as TemplateItem[]);
         setError(null);
@@ -38,19 +39,24 @@ export function TemplateSelector({ onSelect }: TemplateSelectorProps) {
       });
   }, [fetchTemplates, formatFilter]);
 
+  const handleFormatChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newFormat = e.target.value as Format;
+    setFormatFilter(newFormat);
+    onFormatChange?.(newFormat);
+  };
+
   return (
     <div className="p-4 border-b border-zinc-200 bg-white">
       <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
         Шаблоны
       </h3>
 
-      {/* Фильтр по формату */}
+      {/* Выбор формата — только A4 / A3, A4 по умолчанию */}
       <select
         className="w-full text-sm border border-zinc-300 rounded px-2 py-1 mb-3"
         value={formatFilter}
-        onChange={(e) => setFormatFilter(e.target.value as Format | "")}
+        onChange={handleFormatChange}
       >
-        <option value="">Все форматы</option>
         <option value="A4">A4</option>
         <option value="A3">A3</option>
       </select>

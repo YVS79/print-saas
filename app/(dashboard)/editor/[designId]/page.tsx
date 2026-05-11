@@ -10,6 +10,7 @@ import { ObjectProperties } from "@/modules/editor/components/ObjectProperties";
 import { CanvasActions } from "@/modules/editor/components/CanvasActions";
 import { useCanvasManager } from "@/modules/editor/hooks/useCanvasManager";
 import { useExport } from "@/modules/editor/hooks/useExport";
+import type { Format } from "@/lib/types/domain";
 
 /** Внутренний компонент, который использует хуки редактора. */
 function EditorContent() {
@@ -34,6 +35,25 @@ function EditorContent() {
       if (win) win.document.write(`<img src="${dataUrl}" />`);
     }
   }, [getManager, exportToPNG]);
+
+  const handleFormatChange = useCallback(
+    (format: Format) => {
+      const manager = getManager();
+      if (!manager) return;
+
+      manager.setCanvasSize(format, 3);
+      dispatch({
+        type: "SET_LOADED",
+        payload: {
+          format,
+          widthMM: format === "A4" ? 210 : 297,
+          heightMM: format === "A4" ? 297 : 420,
+          bleedMM: 3,
+        },
+      });
+    },
+    [getManager, dispatch],
+  );
 
   const handleTemplateSelect = useCallback(
     async (template: any) => {
@@ -95,7 +115,7 @@ function EditorContent() {
       {/* Правая панель — фиксирована справа окна */}
       <aside className="fixed right-0 top-0 h-screen w-64 border-l border-zinc-200 bg-zinc-50 overflow-y-auto z-20"
         style={{ paddingTop: '48px' }} /* отступ под header */>
-        <TemplateSelector onSelect={handleTemplateSelect} />
+        <TemplateSelector onSelect={handleTemplateSelect} onFormatChange={handleFormatChange} />
         <PhotoPanel getManager={getManager} />
         <TextPanel getManager={getManager} />
       </aside>
