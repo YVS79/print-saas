@@ -52,7 +52,7 @@ export function CanvasActions({ getManager, onSave, onExport }: CanvasActionsPro
   const handleFitToScreen = useCallback(() => {
     const manager = getManager();
     if (!manager) return;
-    manager.setZoom(0.5);
+    manager.core.fitToContainer();
   }, [getManager]);
 
   return (

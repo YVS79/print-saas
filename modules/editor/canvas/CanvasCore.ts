@@ -15,6 +15,8 @@ export class CanvasCore {
   private eventBus: EventBus;
   private format: FormatKey;
   private bleedMM: number;
+  /** Множитель масштаба объектов (не канваса). 1 = оригинальный размер */
+  private objectScale: number = 1;
 
   constructor(private options: CanvasCoreOptions) {
     this.eventBus = options.eventBus;
@@ -41,30 +43,67 @@ export class CanvasCore {
 
     this.eventBus.emit("canvasSizeChanged", { width: size.widthPx, height: size.heightPx });
 
-    // Устанавливаем зум "вписать в контейнер" и рисуем bleed-рамку
+    // Канвас — фиксированный CSS-размер, без зума канваса
+    // Разрешение (буфер) меняется только при A4/A3
     requestAnimationFrame(() => {
       this.fitToContainer();
       this.drawTemplateGuides();
     });
   }
 
-  getCanvas(): import("fabric").Canvas | null {
-    return this.canvas;
+  /** Фиксирует CSS-размер канваса по контейнеру, viewportTransform = identity */
+  fitToContainer(): void {
+    if (!this.canvas) return;
+
+    const canvasEl = this.canvas.getElement();
+    const wrapper = canvasEl.parentElement;
+    if (!wrapper) return;
+    const parent = wrapper.parentElement;
+    if (!parent) return;
+
+    const parentW = parent.clientWidth;
+    const parentH = parent.clientHeight;
+    if (parentW === 0 || parentH === 0) return;
+
+    // CSS размер канваса = контейнер
+    canvasEl.style.width = parentW + 'px';
+    canvasEl.style.height = parentH + 'px';
+    wrapper.style.width = parentW + 'px';
+    wrapper.style.height = parentH + 'px';
+
+    // Без зума — viewportTransform identity
+    this.canvas.viewportTransform = [1, 0, 0, 1, 0, 0];
+    this.canvas.requestRenderAll();
+    this.eventBus.emit("zoomChanged", { zoom: 1 });
   }
 
-  setZoom(zoom: number): void {
-    if (!this.canvas || !this.fabric) return;
-    const centerPoint = new this.fabric.Point(
-      this.canvas.width! / 2,
-      this.canvas.height! / 2
-    );
-    this.canvas.zoomToPoint(centerPoint, zoom);
+  /** Масштабирует все user-объекты на холсте (не канвас) */
+  setZoom(multiplier: number): void {
+    if (!this.canvas) return;
+    const ratio = multiplier / this.objectScale;
+    this.objectScale = multiplier;
+
+    const objects = this.canvas.getObjects();
+    for (const obj of objects) {
+      const role = (obj as any).data?.role;
+      if (role === "template" || role === "slot") continue;
+      obj.set({
+        scaleX: (obj.scaleX ?? 1) * ratio,
+        scaleY: (obj.scaleY ?? 1) * ratio,
+        left: (obj.left ?? 0) * ratio,
+        top: (obj.top ?? 0) * ratio,
+      });
+    }
     this.canvas.requestRenderAll();
-    this.eventBus.emit("zoomChanged", { zoom });
+    this.eventBus.emit("zoomChanged", { zoom: multiplier });
   }
 
   getZoom(): number {
-    return this.canvas?.getZoom() ?? 1;
+    return this.objectScale;
+  }
+
+  getCanvas(): import("fabric").Canvas | null {
+    return this.canvas;
   }
 
   getSize(): { width: number; height: number } {
@@ -73,51 +112,6 @@ export class CanvasCore {
       width: this.canvas.getWidth(),
       height: this.canvas.getHeight(),
     };
-  }
-
-  /**
-   * Вписывает холст в родительский контейнер, сохраняя пропорции.
-   *
-   * Проблема: Fabric создаёт .canvas-container wrapper размером canvas (2551×3579).
-   * После zoomToPoint центр контента (1275, 1789) рендерится за пределами видимой
-   * области родителя (1408×1032), т.к. wrapper прижат к (0,0).
-   *
-   * Решение:
-   * 1. Fabric zoom через viewportTransform [zoom, 0, 0, zoom, 0, 0] — scale без translate
-   * 2. Ресайзим wrapper под zoom-размер (714×1002)
-   * 3. Центрируем wrapper в родителе через absolute positioning
-   */
-  fitToContainer(): void {
-    if (!this.canvas || !this.fabric) return;
-
-    const wrapper = this.canvas.getElement().parentElement;
-    if (!wrapper) return;
-    const parent = wrapper.parentElement;
-    if (!parent) return;
-
-    const canvasW = this.canvas.getWidth();
-    const canvasH = this.canvas.getHeight();
-    const parentW = parent.clientWidth;
-    const parentH = parent.clientHeight;
-
-    if (canvasW === 0 || canvasH === 0 || parentW === 0 || parentH === 0) return;
-
-    // Zoom чтобы canvas вписался в контейнер
-    const zoom = Math.min(parentW / canvasW, parentH / canvasH) * 0.98;
-
-    // Resize wrapper до zoom-размера.
-    // Центрирование выполняется родительским flexbox (items-center justify-center).
-    // Не используем position: absolute — оно вырывает wrapper из потока.
-    const zw = Math.round(canvasW * zoom);
-    const zh = Math.round(canvasH * zoom);
-    wrapper.style.width = zw + 'px';
-    wrapper.style.height = zh + 'px';
-
-    // Fabric zoom — viewportTransform [zoom, 0, 0, zoom, 0, 0]
-    // Контент масштабируется от (0,0) wrapper'а, без translate
-    this.canvas.viewportTransform = [zoom, 0, 0, zoom, 0, 0];
-    this.canvas.requestRenderAll();
-    this.eventBus.emit("zoomChanged", { zoom });
   }
 
   drawTemplateGuides(): void {
