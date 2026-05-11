@@ -84,27 +84,29 @@ function EditorContent() {
   );
 
   return (
-    <div className="flex flex-1 overflow-hidden">
-      {/* Левая панель — инструменты */}
-      <aside className="w-64 border-r border-zinc-200 bg-zinc-50 overflow-y-auto flex-shrink-0">
+    <div className="relative flex-1 overflow-hidden">
+      {/* Левая панель — фиксирована слева окна */}
+      <aside className="fixed left-0 top-0 h-screen w-64 border-r border-zinc-200 bg-zinc-50 overflow-y-auto z-20"
+        style={{ paddingTop: '48px' }} /* отступ под header */>
         <CanvasActions getManager={getManager} onSave={handleSave} onExport={handleExport} />
         <ObjectProperties getManager={getManager} />
       </aside>
 
-      {/* Холст — передаём внешний canvasRef чтобы не создавать второй CanvasManager */}
+      {/* Правая панель — фиксирована справа окна */}
+      <aside className="fixed right-0 top-0 h-screen w-64 border-l border-zinc-200 bg-zinc-50 overflow-y-auto z-20"
+        style={{ paddingTop: '48px' }} /* отступ под header */>
+        <TemplateSelector onSelect={handleTemplateSelect} />
+        <PhotoPanel getManager={getManager} />
+        <TextPanel getManager={getManager} />
+      </aside>
+
+      {/* Холст — занимает всю ширину между панелями */}
       <EditorCanvas
         format="A4"
         bleedMM={3}
         externalCanvasRef={canvasRef}
         externalGetManager={getManager}
       />
-
-      {/* Правая панель — библиотека */}
-      <aside className="w-64 border-l border-zinc-200 bg-zinc-50 overflow-y-auto flex-shrink-0">
-        <TemplateSelector onSelect={handleTemplateSelect} />
-        <PhotoPanel getManager={getManager} />
-        <TextPanel getManager={getManager} />
-      </aside>
     </div>
   );
 }

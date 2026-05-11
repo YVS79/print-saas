@@ -102,14 +102,13 @@ export class CanvasCore {
     // Zoom чтобы canvas вписался в контейнер
     const zoom = Math.min(parentW / canvasW, parentH / canvasH) * 0.98;
 
-    // Resize wrapper до zoom-размера и центрируем в родителе
+    // Resize wrapper до zoom-размера.
+    // Центрирование выполняется родительским flexbox (items-center justify-center).
+    // Не используем position: absolute — оно вырывает wrapper из потока.
     const zw = Math.round(canvasW * zoom);
     const zh = Math.round(canvasH * zoom);
     wrapper.style.width = zw + 'px';
     wrapper.style.height = zh + 'px';
-    wrapper.style.left = Math.round((parentW - zw) / 2) + 'px';
-    wrapper.style.top = Math.round((parentH - zh) / 2) + 'px';
-    wrapper.style.position = 'absolute';
 
     // Fabric zoom — viewportTransform [zoom, 0, 0, zoom, 0, 0]
     // Контент масштабируется от (0,0) wrapper'а, без translate
