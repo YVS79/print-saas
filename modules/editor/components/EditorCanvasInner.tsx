@@ -1,15 +1,14 @@
 "use client";
 
-import React, { useEffect, useState, type RefObject } from "react";
+import React, { useEffect, useState, type RefCallback, useCallback } from "react";
 import { useCanvasManager } from "../hooks/useCanvasManager";
-import { useEditorContext } from "../store/EditorContext";
 import type { CanvasManager } from "../canvas/CanvasManager";
 import type { FormatKey } from "../canvas/canvasConfig";
 
 interface EditorCanvasProps {
   format: FormatKey;
   bleedMM?: number;
-  externalCanvasRef?: RefObject<HTMLCanvasElement | null>;
+  externalCanvasRef?: RefCallback<HTMLCanvasElement>;
   externalGetManager?: () => CanvasManager | null;
 }
 
@@ -19,25 +18,34 @@ function EditorCanvas({
   externalCanvasRef,
   externalGetManager,
 }: EditorCanvasProps) {
-  const { canvasRef: internalCanvasRef } = useCanvasManager(format, bleedMM);
-  const { state } = useEditorContext();
+  // Если передан внешний менеджер — не создаём свой, чтобы избежать двойной инициализации
+  const hasExternal = !!externalGetManager;
+  const { canvasRef: internalCanvasRef } = hasExternal
+    ? { canvasRef: undefined as any }
+    : useCanvasManager(format, bleedMM);
 
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => {
     setHydrated(true);
   }, []);
 
-  const canvasRef = externalCanvasRef ?? internalCanvasRef;
+  // Объединяем refs: вызываем все переданные callback refs
+  const combinedRef: RefCallback<HTMLCanvasElement> = useCallback(
+    (node) => {
+      if (externalCanvasRef) externalCanvasRef(node);
+    },
+    [externalCanvasRef],
+  );
+
+  const refToUse = externalCanvasRef ? combinedRef : internalCanvasRef;
 
   return (
-    <div className="relative flex-1 flex items-center justify-center bg-gray-100 overflow-hidden">
-      {/*
-        Fabric сам управляет canvas-элементом (создаёт .canvas-container wrapper,
-        ставит inline-стили width/height). Наша задача — только центрировать.
-        Зум "вписать в контейнер" устанавливается в CanvasCore.init().
-      */}
+    <div
+      className="relative flex-1 min-w-0 min-h-0 overflow-hidden bg-gray-100"
+      style={{ marginLeft: "256px", marginRight: "256px" }}
+    >
       <canvas
-        ref={canvasRef as RefObject<HTMLCanvasElement | null>}
+        ref={refToUse}
         className="shadow-xl"
       />
     </div>

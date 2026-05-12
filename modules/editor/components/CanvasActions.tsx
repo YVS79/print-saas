@@ -8,13 +8,14 @@ interface CanvasActionsProps {
   getManager: () => CanvasManager | null;
   onSave?: () => void;
   onExport?: () => void;
+  onBack?: () => void;
 }
 
 /**
  * CanvasActions — панель действий над холстом.
  * Zoom, Undo/Redo, Сохранение, Экспорт.
  */
-export function CanvasActions({ getManager, onSave, onExport }: CanvasActionsProps) {
+export function CanvasActions({ getManager, onSave, onExport, onBack }: CanvasActionsProps) {
   const { state } = useEditorContext();
 
   const handleZoomIn = useCallback(() => {
@@ -57,6 +58,16 @@ export function CanvasActions({ getManager, onSave, onExport }: CanvasActionsPro
 
   return (
     <div className="p-4 border-b border-zinc-200 bg-white">
+      {/* Кнопка назад */}
+      {onBack && (
+        <button
+          className="w-full text-left text-sm px-3 py-1.5 rounded bg-zinc-100 hover:bg-zinc-200 transition-colors mb-3"
+          onClick={onBack}
+        >
+          ← Назад
+        </button>
+      )}
+
       <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
         Действия
       </h3>

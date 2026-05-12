@@ -25,12 +25,7 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-/*
- * Fabric v6 ставит inline width/height = canvas на .canvas-container.
- * Ограничиваем, чтобы не раздвигал flex-схему до срабатывания fitToContainer().
- * fitToContainer() перепишет эти размеры программно.
- */
+/* Fabric v6 .canvas-container — растягивается на весь родительский контейнер */
 .canvas-container {
-  max-width: 100% !important;
-  max-height: 100% !important;
+  position: relative !important;
 }

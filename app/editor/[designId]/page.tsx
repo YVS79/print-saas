@@ -12,7 +12,14 @@ import { useCanvasManager } from "@/modules/editor/hooks/useCanvasManager";
 import { useExport } from "@/modules/editor/hooks/useExport";
 import type { Format } from "@/lib/types/domain";
 
-/** Внутренний компонент, который использует хуки редактора. */
+/**
+ * Полноэкранный редактор макетов.
+ * URL: /editor/[designId]
+ *
+ * Layout: h-screen flex-row с fixed сайдбарами шириной 256px каждый.
+ * Центральная область использует margin для отступа от сайдбаров.
+ * Работает без dashboard layout (без header, без max-w-5xl).
+ */
 function EditorContent() {
   const { canvasRef, getManager } = useCanvasManager("A4", 3);
   const { saveDesign, exportToPNG, loadDesign } = useExport();
@@ -62,7 +69,6 @@ function EditorContent() {
 
       dispatch({ type: "SET_LOADING", payload: true });
       try {
-        // Меняем размер холста под формат шаблона
         const newFormat = template.format;
         const newWidthMM = Number(template.width_mm);
         const newHeightMM = Number(template.height_mm);
@@ -104,53 +110,44 @@ function EditorContent() {
   );
 
   return (
-    <div className="relative flex-1 overflow-hidden">
+    <>
       {/* Левая панель — фиксирована слева окна */}
-      <aside className="fixed left-0 top-0 h-screen w-64 border-r border-zinc-200 bg-zinc-50 overflow-y-auto z-20"
-        style={{ paddingTop: '48px' }} /* отступ под header */>
-        <CanvasActions getManager={getManager} onSave={handleSave} onExport={handleExport} />
+      <aside className="fixed left-0 top-0 h-screen w-64 border-r border-zinc-200 bg-zinc-50 overflow-y-auto z-20">
+        <CanvasActions
+          getManager={getManager}
+          onSave={handleSave}
+          onExport={handleExport}
+          onBack={() => window.history.back()}
+        />
         <ObjectProperties getManager={getManager} />
       </aside>
 
       {/* Правая панель — фиксирована справа окна */}
-      <aside className="fixed right-0 top-0 h-screen w-64 border-l border-zinc-200 bg-zinc-50 overflow-y-auto z-20"
-        style={{ paddingTop: '48px' }} /* отступ под header */>
+      <aside className="fixed right-0 top-0 h-screen w-64 border-l border-zinc-200 bg-zinc-50 overflow-y-auto z-20">
         <TemplateSelector onSelect={handleTemplateSelect} onFormatChange={handleFormatChange} />
         <PhotoPanel getManager={getManager} />
         <TextPanel getManager={getManager} />
       </aside>
 
-      {/* Холст — занимает всю ширину между панелями */}
+      {/* Холст — занимает всё доступное пространство между панелями */}
       <EditorCanvas
         format="A4"
         bleedMM={3}
         externalCanvasRef={canvasRef}
         externalGetManager={getManager}
       />
-    </div>
+    </>
   );
 }
 
 /**
- * Страница редактора макетов.
+ * Страница редактора — полноэкранный режим, без dashboard layout.
  * URL: /editor/[designId]
  */
 export default function EditorPage() {
   return (
     <EditorProvider>
-      <div className="flex flex-col h-screen">
-        {/* Верхняя панель */}
-        <header className="sticky top-0 z-10 border-b border-zinc-200 bg-white/90 backdrop-blur-sm px-4 py-2 flex items-center justify-between">
-          <h1 className="text-sm font-semibold text-zinc-800">Редактор макетов</h1>
-          <button
-            className="px-3 py-1 rounded bg-zinc-100 hover:bg-zinc-200 text-sm"
-            onClick={() => window.history.back()}
-          >
-            ← Назад
-          </button>
-        </header>
-
-        {/* Контент редактора */}
+      <div className="h-screen w-screen overflow-hidden flex flex-row bg-gray-100">
         <EditorContent />
       </div>
     </EditorProvider>
